@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Trip Planner - Planejador de Viagens</title>
+    <link rel="stylesheet" href="style.css">
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>✈️</text></svg>">
+</head>
+<body>
+    <div id="auth-container" class="auth-container">
+        <div class="auth-card">
+            <h1>✈️ Trip Planner</h1>
+            <p>Organize seus roteiros e ideias de viagem em um só lugar</p>
+
+            <button id="google-login-btn" class="google-btn">
+                <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" alt="Google Logo">
+                Entrar com o Google
+            </button>
+        </div>
+    </div>
+
+    <div id="app-container" class="app-container hidden">
+        <header class="app-header">
+            <div class="user-info">
+                <img id="user-photo" src="" alt="Foto do Usuário" class="user-avatar">
+                <div>
+                    <h1 id="user-name">Minha Viagem</h1>
+                    <span id="user-email" class="user-email"></span>
+                </div>
+            </div>
+            <button id="logout-btn" class="logout-btn">Sair</button>
+        </header>
+
+        <section class="card-form-section">
+            <form id="add-card-form">
+                <input 
+                    type="text"
+                    id="card-title-input"
+                    placeholder="Ex: Reservar hotel, Visitar museu, Comprar passagens..."
+                    required
+                    autocomplete="off"
+                >
+                <select id="card-column-select">
+                    <option value="ideas">💡 Ideias & Lugares</option>
+                    <option value="todo">🗓️ A Reservar / Comprar</option>
+                    <option value="done">✅ Confirmado & Roteiro</option>
+                </select>
+                <button type="submit" id="add-card-btn">+ Adicionar</button>
+            </form>
+        </section>
+        <main class="kanban-board">
+
+            <div class="kanban-column" data-column="ideas">
+                <div class="column-header">
+                    <h2>💡 Ideias & Lugares</h2>
+                    <span class="card-count" id="count-ideas">0</span>
+                </div>
+                <div class="column-body" id="column-ideas">
+
+                </div>
+            </div>
+
+            <div class="kanban-column" data-column="todo">
+                <div class="column-header">
+                    <h2>🗓️ A Reservar / Comprar</h2>
+                    <span class="card-count" id="count-todo">0</span>
+                </div>
+                <div class="column-body" id="column-todo">
+
+                </div>
+            </div>
+            
+            <div class="kanban-column" data-column="done">
+                <div class="column-header">
+                    <h2>✅ Confirmado & Roteiro</h2>
+                    <span class="card-count" id="count-done">0</span>
+                </div>
+                <div class="column-body" id="column-done">
+
+                </div>
+            </div>
+
+        </main>
+        <footer class="app-footer">
+            <p>Desenvolvido por <strong>Bruno Diniz</strong> • Trip Planner v1.0</p>
+        </footer>
+    </div>
+
+    <script type="module" src="main.js"></script>
+</body>
+</html>
