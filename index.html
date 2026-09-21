@@ -6,6 +6,9 @@
     <title>Trip Planner - Planejador de Viagens</title>
     <link rel="stylesheet" href="style.css">
     <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>✈️</text></svg>">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
 </head>
 <body>
     <div id="auth-container" class="auth-container">
@@ -13,7 +16,7 @@
             <h1>✈️ Trip Planner</h1>
             <p>Organize seus roteiros e ideias de viagem em um só lugar</p>
 
-            <button id="google-login-btn" class="google-btn">
+            <button id="google-login-btn" class="btn google-btn">
                 <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" alt="Google Logo">
                 Entrar com o Google
             </button>
@@ -21,32 +24,49 @@
     </div>
 
     <div id="app-container" class="app-container hidden">
+
         <header class="app-header">
-            <div class="user-info">
+            <div class="user-profile">
                 <img id="user-photo" src="" alt="Foto do Usuário" class="user-avatar">
-                <div>
-                    <h1 id="user-name">Minha Viagem</h1>
+                <div class="user-info">
+                    <span id="user-name" class="user-name">Carregando...</span>
                     <span id="user-email" class="user-email"></span>
                 </div>
             </div>
-            <button id="logout-btn" class="logout-btn">Sair</button>
+            <button id="logout-btn" class="btn btn-secondary">Sair</button>
         </header>
+        <section class="trip-bar">
+            <div class="trip-selector-container">
+                <label for="trip-select"><strong>Viagem Atual:</strong></label>
+                <select id="trip-select" class="trip-select">
+                    
+                </select>
+                <button id="new-trip-btn" class="btn btn-primary-sm">+ Nova Viagem</button>
+            </div>
 
-        <section class="card-form-section">
-            <form id="add-card-form">
+            <div id="trip-members-container" class="trip-members-container hidden">
+                <div class="members-list" id="members-list">
+                    
+                </div>
+                <button id="share-trip-btn" class="btn btn-outline-sm">👥 Convidar Amigo</button>
+                <button id="leave-trip-btn" class="btn btn-danger-sm hidden" title="Sair desta viagem compartilhada">🚪 Sair da Viagem</button>
+            </div>
+        </section>
+
+        <section class="add-card-section">
+            <form id="add-card-form" class="add-card-form">
                 <input 
-                    type="text"
-                    id="card-title-input"
-                    placeholder="Ex: Reservar hotel, Visitar museu, Comprar passagens..."
+                    type="text" 
+                    id="card-title-input" 
+                    placeholder="Ex: Reservar hotel, Visitar museu, Comprar passagens..." 
                     required
-                    autocomplete="off"
                 >
                 <select id="card-column-select">
                     <option value="ideas">💡 Ideias & Lugares</option>
                     <option value="todo">🗓️ A Reservar / Comprar</option>
                     <option value="done">✅ Confirmado & Roteiro</option>
                 </select>
-                <button type="submit" id="add-card-btn">+ Adicionar</button>
+                <button type="submit" class="btn btn-primary">+ Adicionar</button>
             </form>
         </section>
         <main class="kanban-board">
@@ -83,7 +103,7 @@
 
         </main>
         <footer class="app-footer">
-            <p>Desenvolvido por <strong>Bruno Diniz</strong> • Trip Planner v1.0</p>
+            <p>Desenvolvido por <strong>Bruno Diniz</strong> • Trip Planner v2.0</p>
         </footer>
     </div>
 

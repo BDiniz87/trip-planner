@@ -12,10 +12,14 @@ import {
     deleteDoc, 
     updateDoc, 
     doc, 
+    getDoc,
     query, 
     where, 
     onSnapshot, 
-    serverTimestamp 
+    serverTimestamp,
+    arrayUnion,
+    arrayRemove,
+    getDocs 
 } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
 
 const authContainer = document.getElementById('auth-container');
@@ -27,6 +31,13 @@ const logoutBtn = document.getElementById('logout-btn');
 const userPhotoEl = document.getElementById('user-photo');
 const userNameEl = document.getElementById('user-name');
 const userEmailEl = document.getElementById('user-email');
+
+const tripSelect = document.getElementById('trip-select');
+const newTripBtn = document.getElementById('new-trip-btn');
+const tripMembersContainer = document.getElementById('trip-members-container');
+const membersList = document.getElementById('members-list');
+const shareTripBtn = document.getElementById('share-trip-btn');
+const leaveTripBtn = document.getElementById('leave-trip-btn');
 
 const addCardForm = document.getElementById('add-card-form');
 const cardTitleInput = document.getElementById('card-title-input');
@@ -45,7 +56,11 @@ const counts = {
 };
 
 let currentUser = null;
-let unsubscribeSnapshot = null;
+let currentTripId = null;
+let currentTripData = null;
+
+let unsubscribeCards = null;
+let unsubscribeTrips = null;
 
 
 googleLoginBtn.addEventListener('click', async () => {
@@ -79,18 +94,163 @@ onAuthStateChanged(auth, (user) => {
         authContainer.classList.add('hidden');
         appContainer.classList.remove('hidden');
 
-        listenToCards(user.uid);
+        listenToUserTrips(user);
     } else {
         currentUser = null;
+        currentTripId = null;
+        currentTripData = null;
 
-        if (unsubscribeSnapshot) {
-            unsubscribeSnapshot();
-            unsubscribeSnapshot = null;
-        }
+        if (unsubscribeCards) unsubscribeCards();
+        if (unsubscribeTrips) unsubscribeTrips();
 
         authContainer.classList.remove('hidden');
         appContainer.classList.add('hidden');
         clearKanban();
+    }
+});
+
+function listenToUserTrips(user){
+    const tripsRef = collection(db,'trips');
+    const q = query(tripsRef, where('members', 'array-contains', user.email));
+
+    if(unsubscribeTrips) unsubscribeTrips();
+
+    unsubscribeTrips = onSnapshot(q, async (snapshot) => {
+        if (snapshot.empty){
+            await createInitialTrip(user);
+            return;
+        }
+
+        tripSelect.innerHTML = '';
+        const trips = [];
+
+        snapshot.forEach((docSnap) =>{
+            trips.push({ id: docSnap.id, ...docSnap.data() });
+        });
+
+        trips.forEach((trip) => {
+            const option = document.createElement('option');
+            option.value = trip.id;
+            option.textContent = trip.title;
+            tripSelect.appendChild(option);
+        });   
+        
+        const tripExists = trips.some(t => t.id === currentTripId);
+        if (!tripExists) {
+            currentTripId = trips[0].id;
+        }
+
+        tripSelect.value = currentTripId;
+        updateCurrentTripView(trips.find(t => t.id === currentTripId));
+    }, (error) => {
+        console.error("Erro ao carregar viagens:", error);
+    });
+}
+
+async function createInitialTrip(user) {
+    try{
+        const docRef = await addDoc(collection(db, 'trips'), {
+            title:'Minha Primeira Viagem ✈️',
+            createdBy: user.uid,
+            members: [user.email],
+            createdAt: serverTimestamp()
+        });
+        currentTripId = docRef.id;
+    } catch (error) {
+        console.error("Erro ao criar viagem inicial: ", error);
+    }
+}
+
+tripSelect.addEventListener('change', async (e) => {
+    currentTripId = e.target.value;
+
+    try {
+        const tripRef = doc(db, 'trips', currentTripId);
+        const docSnap = await getDoc(tripRef);
+
+        if (docSnap.exists()) {
+            updateCurrentTripView({ id: docSnap.id, ...docSnap.data() });
+        }
+    } catch (error) {
+        console.error("Erro ao alternar de viagem:", error);
+    }
+});
+
+newTripBtn.addEventListener('click', async () => {
+    const title = prompt("Digite o nome da nova viagem (Ex: Férias em Paris):");
+    if (!title || !title.trim()) return;
+
+    try {
+        const docRef = await addDoc(collection(db, 'trips'), {
+            title: title.trim(),
+            createdBy: currentUser.uid,
+            members: [currentUser.email],
+            createdAt: serverTimestamp()
+        });
+        currentTripId = docRef.id;
+    } catch (error) {
+        console.error("Erro ao criar nova viagem:", error);
+        alert("Erro ao criar viagem.");
+    }
+});
+
+function updateCurrentTripView(tripData) {
+    if(!tripData) return;
+
+    currentTripData = tripData;
+    tripMembersContainer.classList.remove('hidden');
+    membersList.innerHTML = '';
+
+    tripData.members.forEach((email) => {
+        const badge = document.createElement('span');
+        badge.className = 'member-badge';
+        badge.textContent = email === currentUser.email ? 'Você' : email;
+        membersList.appendChild(badge);
+    });
+
+    if (tripData.createdBy !== currentUser.uid) {
+        leaveTripBtn.classList.remove('hidden');
+    } else {
+        leaveTripBtn.classList.add('hidden');
+    }
+
+    listenToCards(currentTripId);
+}
+
+shareTripBtn.addEventListener('click', async () => {
+    const email = prompt("Digite o e-mail do amigo para compartilhar a viagem:");
+    if (!email || !email.trim()) return;
+
+    const formattedEmail = email.trim().toLowerCase();
+
+    if (currentTripData.members.includes(formattedEmail)) {
+        alert("Este e-mail já é um membro da viagem!");
+        return;
+    }
+
+    try {
+        const tripRef = doc(db, 'trips', currentTripId);
+        await updateDoc(tripRef, {
+            members: arrayUnion(formattedEmail) 
+        });
+        alert("Amigo adicionado com sucesso!");
+    } catch (error) {
+        console.error("Erro ao compartilhar viagem:", error);
+        alert("Erro ao adicionar membro.");
+    }
+});
+
+leaveTripBtn.addEventListener('click', async () => {
+    if (confirm(`Deseja realmente sair da viagem "${currentTripData.title}"?`)) {
+        try {
+            const tripRef = doc(db, 'trips', currentTripId);
+            await updateDoc(tripRef, {
+                members: arrayRemove(currentUser.email) 
+            });
+            currentTripId = null;
+        } catch (error) {
+            console.error("Erro ao sair da viagem:", error);
+        }
     }
 });
 
@@ -100,48 +260,50 @@ addCardForm.addEventListener('submit', async (e) => {
     const title = cardTitleInput.value.trim();
     const column = cardColumnSelect.value;
 
-    if (!title || !currentUser) return;
+    if (!title || !currentUser || !currentTripId) return;
 
     try {
         await addDoc(collection(db, 'cards'), {
             title: title,
             column: column,
-            userId: currentUser.uid,
+            tripId: currentTripId, 
+            createdBy: currentUser.uid,
             createdAt: serverTimestamp()
         });
         cardTitleInput.value = '';
     } catch (error) {
-        console.error("Erro ao adcionar cartão: ", error);
-        alert("Erro ao salvar o item. Verifique sua conexão.");
+        console.error("Erro ao adicionar cartão:", error);
+        alert("Erro ao salvar item.");
     }
 });
 
-function listenToCards(userId) {
+function listenToCards(tripId) {
     const cardsRef = collection(db, 'cards');
-    const q = query(cardsRef, where('userId', '==', userId));
+    const q = query(cardsRef, where('tripId', '==', tripId));
 
-    if(unsubscribeSnapshot) unsubscribeSnapshot();
+    if (unsubscribeCards) unsubscribeCards();
 
-    unsubscribeSnapshot = onSnapshot(q, (snapshot) => {
+    unsubscribeCards = onSnapshot(q, (snapshot) => {
         clearKanban();
 
-        const columnCounts = {ideas: 0, todo: 0, done: 0};
-        snapshot.forEach((docSnapshot) => {
-            const cardData = docSnapshot.data();
-            const cardId = docSnapshot.id;
+        const columnCounts = { ideas: 0, todo: 0, done: 0 };
+
+        snapshot.forEach((docSnap) => {
+            const cardData = docSnap.data();
+            const cardId = docSnap.id;
 
             if (columnBodies[cardData.column]) {
-                            const cardElement = createCardElement(cardId, cardData);
-                            columnBodies[cardData.column].appendChild(cardElement);
-                            columnCounts[cardData.column]++;
-            }            
+                const cardElement = createCardElement(cardId, cardData);
+                columnBodies[cardData.column].appendChild(cardElement);
+                columnCounts[cardData.column]++;
+            }
         });
 
         counts.ideas.textContent = columnCounts.ideas;
         counts.todo.textContent = columnCounts.todo;
         counts.done.textContent = columnCounts.done;
     }, (error) => {
-        console.error("Erro ao carregar cartões em tempo real: ", error);
+        console.error("Erro ao carregar cartões:", error);
     });
 }
 
