@@ -1,4 +1,4 @@
-import {auth, googleProvider, db} from './firebase-config.js';
+import { auth, googleProvider, db } from './firebase-config.js';
 
 import {
     signInWithPopup,
@@ -19,7 +19,8 @@ import {
     serverTimestamp,
     arrayUnion,
     arrayRemove,
-    getDocs 
+    getDocs,
+    writeBatch
 } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
 
 const authContainer = document.getElementById('auth-container');
@@ -32,8 +33,18 @@ const userPhotoEl = document.getElementById('user-photo');
 const userNameEl = document.getElementById('user-name');
 const userEmailEl = document.getElementById('user-email');
 
+const emptyState = document.getElementById('empty-state');
+const tripContent = document.getElementById('trip-content');
+const createFirstTripBtn = document.getElementById('create-first-trip-btn');
+
 const tripSelect = document.getElementById('trip-select');
 const newTripBtn = document.getElementById('new-trip-btn');
+const editTripBtn = document.getElementById('edit-trip-btn');
+const deleteTripBtn = document.getElementById('delete-trip-btn');
+
+const tripStartDateInput = document.getElementById('trip-start-date');
+const tripEndDateInput = document.getElementById('trip-end-date');
+
 const tripMembersContainer = document.getElementById('trip-members-container');
 const membersList = document.getElementById('members-list');
 const shareTripBtn = document.getElementById('share-trip-btn');
@@ -55,19 +66,37 @@ const counts = {
     done: document.getElementById('count-done')
 };
 
+const cardModal = document.getElementById('card-modal');
+const closeModalBtn = document.getElementById('close-modal-btn');
+const cancelModalBtn = document.getElementById('cancel-modal-btn');
+const saveModalBtn = document.getElementById('save-modal-btn');
+const deleteCardModalBtn = document.getElementById('delete-card-modal-btn');
+
+const modalCardTitle = document.getElementById('modal-card-title');
+const modalAuthorInfo = document.getElementById('modal-author-info');
+const modalCardDate = document.getElementById('modal-card-date');
+const modalCardDesc = document.getElementById('modal-card-desc');
+const modalCardLink = document.getElementById('modal-card-link');
+const modalCardCost = document.getElementById('modal-card-cost');
+
+const modalChecklistItems = document.getElementById('modal-checklist-items');
+const newChecklistInput = document.getElementById('new-checklist-input');
+const addChecklistBtn = document.getElementById('add-checklist-btn');
+
 let currentUser = null;
 let currentTripId = null;
 let currentTripData = null;
+let activeEditingCardId = null;
+let activeChecklist = [];
 
 let unsubscribeCards = null;
 let unsubscribeTrips = null;
 
-
 googleLoginBtn.addEventListener('click', async () => {
     try {
         await signInWithPopup(auth, googleProvider);
-    } catch (error){
-        console.error("Erro ao fazer login com o Google: ",error);
+    } catch (error) {
+        console.error("Erro ao fazer login com o Google: ", error);
         alert("Não foi possível realizar o login. Tente novamente");
     }
 });
@@ -109,22 +138,30 @@ onAuthStateChanged(auth, (user) => {
     }
 });
 
-function listenToUserTrips(user){
-    const tripsRef = collection(db,'trips');
+function listenToUserTrips(user) {
+    const tripsRef = collection(db, 'trips');
     const q = query(tripsRef, where('members', 'array-contains', user.email));
 
-    if(unsubscribeTrips) unsubscribeTrips();
+    if (unsubscribeTrips) unsubscribeTrips();
 
     unsubscribeTrips = onSnapshot(q, async (snapshot) => {
-        if (snapshot.empty){
-            await createInitialTrip(user);
+        if (snapshot.empty) {
+            currentTripId = null;
+            currentTripData = null;
+            tripSelect.innerHTML = '';
+            emptyState.classList.remove('hidden');
+            tripContent.classList.add('hidden');
+            clearKanban();
             return;
         }
+
+        emptyState.classList.add('hidden');
+        tripContent.classList.remove('hidden');
 
         tripSelect.innerHTML = '';
         const trips = [];
 
-        snapshot.forEach((docSnap) =>{
+        snapshot.forEach((docSnap) => {
             trips.push({ id: docSnap.id, ...docSnap.data() });
         });
 
@@ -133,8 +170,8 @@ function listenToUserTrips(user){
             option.value = trip.id;
             option.textContent = trip.title;
             tripSelect.appendChild(option);
-        });   
-        
+        });
+
         const tripExists = trips.some(t => t.id === currentTripId);
         if (!tripExists) {
             currentTripId = trips[0].id;
@@ -147,19 +184,28 @@ function listenToUserTrips(user){
     });
 }
 
-async function createInitialTrip(user) {
-    try{
+async function handleCreateTrip() {
+    const title = prompt("Digite o nome da nova viagem (Ex: Férias em Paris):");
+    if (!title || !title.trim()) return;
+
+    try {
         const docRef = await addDoc(collection(db, 'trips'), {
-            title:'Minha Primeira Viagem ✈️',
-            createdBy: user.uid,
-            members: [user.email],
-            createdAt: serverTimestamp()
+            title: title.trim(),
+            createdBy: currentUser.uid,
+            members: [currentUser.email],
+            createdAt: serverTimestamp(),
+            startDate: '',
+            endDate: ''
         });
         currentTripId = docRef.id;
     } catch (error) {
-        console.error("Erro ao criar viagem inicial: ", error);
+        console.error("Erro ao criar nova viagem:", error);
+        alert("Erro ao criar viagem.");
     }
 }
+
+newTripBtn.addEventListener('click', handleCreateTrip);
+createFirstTripBtn.addEventListener('click', handleCreateTrip);
 
 tripSelect.addEventListener('change', async (e) => {
     currentTripId = e.target.value;
@@ -176,45 +222,137 @@ tripSelect.addEventListener('change', async (e) => {
     }
 });
 
-newTripBtn.addEventListener('click', async () => {
-    const title = prompt("Digite o nome da nova viagem (Ex: Férias em Paris):");
-    if (!title || !title.trim()) return;
+editTripBtn.addEventListener('click', async () => {
+    if (!currentTripData) return;
+
+    const newTitle = prompt("Novo nome para a viagem:", currentTripData.title);
+    if (!newTitle || !newTitle.trim() || newTitle.trim() === currentTripData.title) return;
 
     try {
-        const docRef = await addDoc(collection(db, 'trips'), {
-            title: title.trim(),
-            createdBy: currentUser.uid,
-            members: [currentUser.email],
-            createdAt: serverTimestamp()
-        });
-        currentTripId = docRef.id;
+        const tripRef = doc(db, 'trips', currentTripId);
+        await updateDoc(tripRef, { title: newTitle.trim() });
     } catch (error) {
-        console.error("Erro ao criar nova viagem:", error);
-        alert("Erro ao criar viagem.");
+        console.error("Erro ao renomear viagem:", error);
+        alert("Erro ao renomear viagem.");
+    }
+});
+
+deleteTripBtn.addEventListener('click', async () => {
+    if (!currentTripData) return;
+
+    const confirmation = confirm(`Deseja realmente excluir a viagem "${currentTripData.title}"?\n\nAtenção: Todos os passeios e itens desta viagem também serão apagados para todos os membros!`);
+    if (!confirmation) return;
+
+    try {
+        const cardsQuery = query(collection(db, 'cards'), where('tripId', '==', currentTripId));
+        const cardsSnapshot = await getDocs(cardsQuery);
+
+        const batch = writeBatch(db);
+        cardsSnapshot.forEach((cardDoc) => {
+            batch.delete(cardDoc.ref);
+        });
+
+        const tripRef = doc(db, 'trips', currentTripId);
+        batch.delete(tripRef);
+
+        await batch.commit();
+
+        currentTripId = null;
+        currentTripData = null;
+        alert("Viagem excluída com sucesso.");
+    } catch (error) {
+        console.error("Erro ao excluir viagem:", error);
+        alert("Erro ao excluir viagem.");
+    }
+});
+
+tripStartDateInput.addEventListener('change', async (e) => {
+    if (!currentTripId) return;
+    const startDateVal = e.target.value;
+
+    if (startDateVal) {
+        tripEndDateInput.min = startDateVal;
+    }
+
+    try {
+        await updateDoc(doc(db, 'trips', currentTripId), { startDate: startDateVal });
+    } catch (error) {
+        console.error("Erro ao salvar data de início:", error);
+    }
+});
+
+tripEndDateInput.addEventListener('click', () => {
+
+    if (!tripEndDateInput.value && tripStartDateInput.value) {
+        tripEndDateInput.value = tripStartDateInput.value;
+    }
+});
+
+tripEndDateInput.addEventListener('change', async (e) => {
+    if (!currentTripId) return;
+    try {
+        await updateDoc(doc(db, 'trips', currentTripId), { endDate: e.target.value });
+    } catch (error) {
+        console.error("Erro ao salvar data de fim:", error);
     }
 });
 
 function updateCurrentTripView(tripData) {
-    if(!tripData) return;
+    if (!tripData) return;
 
     currentTripData = tripData;
     tripMembersContainer.classList.remove('hidden');
     membersList.innerHTML = '';
 
+    const isOwner = tripData.createdBy === currentUser.uid;
+
+    if (isOwner) {
+        editTripBtn.classList.remove('hidden');
+        deleteTripBtn.classList.remove('hidden');
+        leaveTripBtn.classList.add('hidden');
+    } else {
+        editTripBtn.classList.add('hidden');
+        deleteTripBtn.classList.add('hidden');
+        leaveTripBtn.classList.remove('hidden');
+    }
+
+    tripStartDateInput.value = tripData.startDate || '';
+    tripEndDateInput.value = tripData.endDate || '';
+
     tripData.members.forEach((email) => {
         const badge = document.createElement('span');
         badge.className = 'member-badge';
-        badge.textContent = email === currentUser.email ? 'Você' : email;
+        
+        const labelText = email === currentUser.email ? 'Você' : email;
+        badge.textContent = labelText;
+
+        if (isOwner && email !== currentUser.email) {
+            const removeBtn = document.createElement('button');
+            removeBtn.className = 'remove-member-btn';
+            removeBtn.textContent = '✕';
+            removeBtn.title = `Remover ${email} da viagem`;
+            removeBtn.onclick = () => removeMember(email);
+            badge.appendChild(removeBtn);
+        }
+
         membersList.appendChild(badge);
     });
 
-    if (tripData.createdBy !== currentUser.uid) {
-        leaveTripBtn.classList.remove('hidden');
-    } else {
-        leaveTripBtn.classList.add('hidden');
-    }
-
     listenToCards(currentTripId);
+}
+
+async function removeMember(emailToRemove) {
+    if (confirm(`Deseja remover ${emailToRemove} desta viagem?`)) {
+        try {
+            const tripRef = doc(db, 'trips', currentTripId);
+            await updateDoc(tripRef, {
+                members: arrayRemove(emailToRemove)
+            });
+        } catch (error) {
+            console.error("Erro ao remover membro:", error);
+            alert("Erro ao remover membro.");
+        }
+    }
 }
 
 shareTripBtn.addEventListener('click', async () => {
@@ -268,7 +406,13 @@ addCardForm.addEventListener('submit', async (e) => {
             column: column,
             tripId: currentTripId, 
             createdBy: currentUser.uid,
-            createdAt: serverTimestamp()
+            authorName: currentUser.displayName || 'Viajante',
+            createdAt: serverTimestamp(),
+            description: '',
+            scheduledDate: '',
+            link: '',
+            cost: '',
+            checklist: []
         });
         cardTitleInput.value = '';
     } catch (error) {
@@ -315,6 +459,11 @@ function clearKanban() {
 function createCardElement(id, data) {
     const cardDiv = document.createElement('div');
     cardDiv.className = 'kanban-card';
+    
+    cardDiv.onclick = (e) => {
+        if (e.target.tagName === 'BUTTON' || e.target.closest('.card-actions')) return;
+        openCardModal(id, data);
+    };
 
     const titleSpan = document.createElement('span');
     titleSpan.textContent = data.title;
@@ -328,7 +477,10 @@ function createCardElement(id, data) {
         prevBtn.className = 'card-action-btn';
         prevBtn.textContent = '⬅️';
         prevBtn.title = 'Mover para esquerda';
-        prevBtn.onclick = () => moveCard(id, getPreviousColumn(data.column));
+        prevBtn.onclick = (e) => {
+            e.stopPropagation();
+            moveCard(id, getPreviousColumn(data.column));
+        };
         actionsDiv.appendChild(prevBtn);
     }
 
@@ -337,7 +489,10 @@ function createCardElement(id, data) {
         nextBtn.className = 'card-action-btn';
         nextBtn.textContent = '➡️';
         nextBtn.title = 'Mover para direita';
-        nextBtn.onclick = () => moveCard(id, getNextColumn(data.column));
+        nextBtn.onclick = (e) => {
+            e.stopPropagation();
+            moveCard(id, getNextColumn(data.column));
+        };
         actionsDiv.appendChild(nextBtn);
     }
 
@@ -345,12 +500,14 @@ function createCardElement(id, data) {
     deleteBtn.className = 'card-action-btn';
     deleteBtn.textContent = '🗑️';
     deleteBtn.title = 'Excluir item';
-    deleteBtn.onclick = () => deleteCard(id);
+    deleteBtn.onclick = (e) => {
+        e.stopPropagation();
+        deleteCard(id);
+    };
     actionsDiv.appendChild(deleteBtn);
 
     cardDiv.appendChild(actionsDiv);
     return cardDiv;
-
 }
 
 function getNextColumn(currentColumn) {
@@ -365,21 +522,126 @@ function getPreviousColumn(currentColumn) {
     return currentColumn;
 }
 
-async function moveCard(id,targetColumn) {
-    try{
+async function moveCard(id, targetColumn) {
+    try {
         const cardRef = doc(db, 'cards', id);
-        await updateDoc(cardRef, { column: targetColumn});
+        await updateDoc(cardRef, { column: targetColumn });
     } catch (error) {
         console.error("Erro ao mover cartão: ", error);
     }
 }
 
 async function deleteCard(id) {
-    if(confirm("Deseja realmente remover este item da sua viagem?")){
+    if (confirm("Deseja realmente remover este item da sua viagem?")) {
         try {
             await deleteDoc(doc(db, 'cards', id));
         } catch (error) {
             console.error("Erro ao excluir o cartão:", error);
         }
     }
+}
+
+function openCardModal(id, data) {
+    activeEditingCardId = id;
+    activeChecklist = [...(data.checklist || [])];
+
+    modalCardTitle.value = data.title || '';
+    modalAuthorInfo.textContent = `👤 Adicionado por: ${data.authorName || 'Viajante'}`;
+    
+    if (data.scheduledDate) {
+        modalCardDate.value = data.scheduledDate;
+    } else if (currentTripData && currentTripData.startDate) {
+        modalCardDate.value = `${currentTripData.startDate}T09:00`;
+    } else {
+        modalCardDate.value = '';
+    }
+
+    modalCardDesc.value = data.description || '';
+    modalCardLink.value = data.link || '';
+    modalCardCost.value = data.cost || '';
+
+    renderChecklist();
+    cardModal.classList.remove('hidden');
+}
+
+function closeCardModal() {
+    activeEditingCardId = null;
+    activeChecklist = [];
+    cardModal.classList.add('hidden');
+}
+
+closeModalBtn.addEventListener('click', closeCardModal);
+cancelModalBtn.addEventListener('click', closeCardModal);
+
+saveModalBtn.addEventListener('click', async () => {
+    if (!activeEditingCardId) return;
+
+    try {
+        const cardRef = doc(db, 'cards', activeEditingCardId);
+        await updateDoc(cardRef, {
+            title: modalCardTitle.value.trim() || 'Sem título',
+            scheduledDate: modalCardDate.value,
+            description: modalCardDesc.value.trim(),
+            link: modalCardLink.value.trim(),
+            cost: modalCardCost.value,
+            checklist: activeChecklist
+        });
+        closeCardModal();
+    } catch (error) {
+        console.error("Erro ao salvar detalhes do cartão:", error);
+        alert("Erro ao salvar alterações.");
+    }
+});
+
+deleteCardModalBtn.addEventListener('click', async () => {
+    if (!activeEditingCardId) return;
+    if (confirm("Deseja realmente excluir este cartão?")) {
+        try {
+            await deleteDoc(doc(db, 'cards', activeEditingCardId));
+            closeCardModal();
+        } catch (error) {
+            console.error("Erro ao excluir cartão pelo modal:", error);
+        }
+    }
+});
+
+addChecklistBtn.addEventListener('click', () => {
+    const text = newChecklistInput.value.trim();
+    if (!text) return;
+
+    activeChecklist.push({ text: text, done: false });
+    newChecklistInput.value = '';
+    renderChecklist();
+});
+
+function renderChecklist() {
+    modalChecklistItems.innerHTML = '';
+    activeChecklist.forEach((item, index) => {
+        const itemDiv = document.createElement('div');
+        itemDiv.className = `checklist-item ${item.done ? 'done' : ''}`;
+
+        const checkbox = document.createElement('input');
+        checkbox.type = 'checkbox';
+        checkbox.checked = item.done;
+        checkbox.onchange = () => {
+            activeChecklist[index].done = checkbox.checked;
+            renderChecklist();
+        };
+
+        const span = document.createElement('span');
+        span.textContent = item.text;
+
+        const removeBtn = document.createElement('button');
+        removeBtn.className = 'remove-item-btn';
+        removeBtn.textContent = '✕';
+        removeBtn.onclick = () => {
+            activeChecklist.splice(index, 1);
+            renderChecklist();
+        };
+
+        itemDiv.appendChild(checkbox);
+        itemDiv.appendChild(span);
+        itemDiv.appendChild(removeBtn);
+        modalChecklistItems.appendChild(itemDiv);
+    });
 }

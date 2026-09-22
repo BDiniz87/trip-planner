@@ -35,75 +35,147 @@
             </div>
             <button id="logout-btn" class="btn btn-secondary">Sair</button>
         </header>
-        <section class="trip-bar">
-            <div class="trip-selector-container">
-                <label for="trip-select"><strong>Viagem Atual:</strong></label>
-                <select id="trip-select" class="trip-select">
+
+        <div id="empty-state" class="empty-state hidden">
+            <div class="empty-state-card">
+                <h2>🌍 Nenhuma viagem encontrada</h2>
+                <p>Você ainda não criou ou não foi convidado para nenhuma viagem.</p>
+                <button id="create-first-trip-btn" class="btn btn-primary">+ Criar Minha Primeira Viagem</button>
+            </div>
+        </div>
+
+        <div id="trip-content">
+
+            <section class="trip-bar">
+                <div class="trip-selector-container">
+                    <label for="trip-select"><strong>Viagem Atual:</strong></label>
+                    <select id="trip-select" class="trip-select"></select>
                     
-                </select>
-                <button id="new-trip-btn" class="btn btn-primary-sm">+ Nova Viagem</button>
-            </div>
+                    <button id="new-trip-btn" class="btn btn-primary-sm" title="Criar nova viagem">+ Nova Viagem</button>
 
-            <div id="trip-members-container" class="trip-members-container hidden">
-                <div class="members-list" id="members-list">
+                    <button id="edit-trip-btn" class="btn btn-outline-sm" title="Editar nome da viagem">✏️</button>
+                    <button id="delete-trip-btn" class="btn btn-danger-sm" title="Excluir esta viagem">🗑️</button>
+                </div>
+
+                <div class="trip-dates-container">
+                    <span class="dates-label">🗓️ Período:</span>
+                    <input type="date" id="trip-start-date" class="date-input" title="Data de Início">
+                    <span>até</span>
+                    <input type="date" id="trip-end-date" class="date-input" title="Data de Fim">
+                </div>
+
+                <div id="trip-members-container" class="trip-members-container hidden">
+                    <div class="members-list" id="members-list"></div>
+                    <button id="share-trip-btn" class="btn btn-outline-sm">👥 Convidar Amigo</button>
+                    <button id="leave-trip-btn" class="btn btn-danger-sm hidden" title="Sair desta viagem compartilhada">🚪 Sair da Viagem</button>
+                </div>
+            </section>
+
+            <section class="add-card-section">
+                <form id="add-card-form" class="add-card-form">
+                    <input 
+                        type="text" 
+                        id="card-title-input" 
+                        placeholder="Ex: Reservar hotel, Visitar museu, Comprar passagens..." 
+                        required
+                    >
+                    <select id="card-column-select">
+                        <option value="ideas">💡 Ideias & Lugares</option>
+                        <option value="todo">🗓️ A Reservar / Comprar</option>
+                        <option value="done">✅ Confirmado & Roteiro</option>
+                    </select>
+                    <button type="submit" class="btn btn-primary">+ Adicionar</button>
+                </form>
+            </section>
+
+            <main class="kanban-board">
+
+                <div class="kanban-column" data-column="ideas">
+                    <div class="column-header">
+                        <h2>💡 Ideias & Lugares</h2>
+                        <span class="card-count" id="count-ideas">0</span>
+                    </div>
+                    <div class="column-body" id="column-ideas"></div>
+                </div>
+
+                <div class="kanban-column" data-column="todo">
+                    <div class="column-header">
+                        <h2>🗓️ A Reservar / Comprar</h2>
+                        <span class="card-count" id="count-todo">0</span>
+                    </div>
+                    <div class="column-body" id="column-todo"></div>
+                </div>
+
+                <div class="kanban-column" data-column="done">
+                    <div class="column-header">
+                        <h2>✅ Confirmado & Roteiro</h2>
+                        <span class="card-count" id="count-done">0</span>
+                    </div>
+                    <div class="column-body" id="column-done"></div>
+                </div>
+
+            </main>
+        </div>
+
+        <div id="card-modal" class="modal-overlay hidden">
+            <div class="modal-card">
+                
+                <header class="modal-header">
+                    <input type="text" id="modal-card-title" class="modal-title-input" placeholder="Título do passeio ou item...">
+                    <button id="close-modal-btn" class="modal-close-btn" type="button">&times;</button>
+                </header>
+
+                <div class="modal-body">
                     
+                    <div class="modal-meta-bar">
+                        <span id="modal-author-info" class="meta-item">👤 Adicionado por: ---</span>
+                        <div class="meta-item">
+                            <label for="modal-card-date">⏰ Agendado para:</label>
+                            <input type="datetime-local" id="modal-card-date" class="date-input-sm">
+                        </div>
+                    </div>
+
+                    <div class="modal-section">
+                        <label for="modal-card-desc" class="section-title">📝 Notas e Descrição:</label>
+                        <textarea id="modal-card-desc" rows="4" placeholder="Endereço, horários de funcionamento, código da reserva, observações..."></textarea>
+                    </div>
+
+                    <div class="modal-grid-2col">
+                        <div class="modal-section">
+                            <label for="modal-card-link" class="section-title">🔗 Link Útil (Google Maps, Hotel, Ticket):</label>
+                            <input type="url" id="modal-card-link" placeholder="https://...">
+                        </div>
+                        <div class="modal-section">
+                            <label for="modal-card-cost" class="section-title">💰 Custo Estimado (R$):</label>
+                            <input type="number" id="modal-card-cost" step="0.01" placeholder="0,00">
+                        </div>
+                    </div>
+
+                    <div class="modal-section">
+                        <span class="section-title">☑️ Checklist / Subtarefas:</span>
+                        <div id="modal-checklist-items" class="checklist-container"></div>
+                        
+                        <div class="checklist-add-form">
+                            <input type="text" id="new-checklist-input" placeholder="Adicionar sub-item (ex: Comprar seguro viagem)...">
+                            <button type="button" id="add-checklist-btn" class="btn btn-outline-sm">+ Adicionar Item</button>
+                        </div>
+                    </div>
+
                 </div>
-                <button id="share-trip-btn" class="btn btn-outline-sm">👥 Convidar Amigo</button>
-                <button id="leave-trip-btn" class="btn btn-danger-sm hidden" title="Sair desta viagem compartilhada">🚪 Sair da Viagem</button>
+
+                <footer class="modal-footer">
+                    <button id="delete-card-modal-btn" class="btn btn-danger-sm" type="button">🗑️ Excluir Cartão</button>
+                    <div class="footer-actions">
+                        <button id="cancel-modal-btn" class="btn btn-outline-sm" type="button">Cancelar</button>
+                        <button id="save-modal-btn" class="btn btn-primary-sm" type="button">Salvar Alterações</button>
+                    </div>
+                </footer>
+
             </div>
-        </section>
+        </div>
 
-        <section class="add-card-section">
-            <form id="add-card-form" class="add-card-form">
-                <input 
-                    type="text" 
-                    id="card-title-input" 
-                    placeholder="Ex: Reservar hotel, Visitar museu, Comprar passagens..." 
-                    required
-                >
-                <select id="card-column-select">
-                    <option value="ideas">💡 Ideias & Lugares</option>
-                    <option value="todo">🗓️ A Reservar / Comprar</option>
-                    <option value="done">✅ Confirmado & Roteiro</option>
-                </select>
-                <button type="submit" class="btn btn-primary">+ Adicionar</button>
-            </form>
-        </section>
-        <main class="kanban-board">
-
-            <div class="kanban-column" data-column="ideas">
-                <div class="column-header">
-                    <h2>💡 Ideias & Lugares</h2>
-                    <span class="card-count" id="count-ideas">0</span>
-                </div>
-                <div class="column-body" id="column-ideas">
-
-                </div>
-            </div>
-
-            <div class="kanban-column" data-column="todo">
-                <div class="column-header">
-                    <h2>🗓️ A Reservar / Comprar</h2>
-                    <span class="card-count" id="count-todo">0</span>
-                </div>
-                <div class="column-body" id="column-todo">
-
-                </div>
-            </div>
-            
-            <div class="kanban-column" data-column="done">
-                <div class="column-header">
-                    <h2>✅ Confirmado & Roteiro</h2>
-                    <span class="card-count" id="count-done">0</span>
-                </div>
-                <div class="column-body" id="column-done">
-
-                </div>
-            </div>
-
-        </main>
         <footer class="app-footer">
-            <p>Desenvolvido por <strong>Bruno Diniz</strong> • Trip Planner v2.0</p>
+            <p>Desenvolvido por <strong>Bruno Diniz</strong> • Trip Planner v3.0</p>
         </footer>
     </div>
 
