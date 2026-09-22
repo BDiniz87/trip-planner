@@ -366,29 +366,30 @@ body {
     border-color: #ef4444;
 }
 
-/* Barra de Viagens */
 .trip-bar {
     background-color: var(--bg-card);
     border: 1px solid var(--border-color);
     border-radius: var(--radius-md);
-    padding: 1rem 1.5rem;
+    padding: 1rem 1.25rem;
     margin-bottom: 1.5rem;
     box-shadow: var(--shadow-sm);
     display: flex;
-    flex-wrap: wrap;
-    align-items: center;
-    justify-content: space-between;
-    gap: 1rem;
+    flex-direction: column;
+    gap: 1.25rem;
 }
 
 .trip-selector-container {
     display: flex;
+    flex-wrap: wrap;
     align-items: center;
     gap: 0.75rem;
+    width: 100%;
 }
 
 .trip-select {
-    padding: 0.5rem 1rem;
+    flex: 1;
+    min-width: 160px;
+    padding: 0.5rem 0.75rem;
     border: 1px solid var(--border-color);
     border-radius: var(--radius-sm);
     font-size: 0.95rem;
@@ -406,8 +407,13 @@ body {
 
 .trip-members-container {
     display: flex;
+    flex-wrap: wrap;
     align-items: center;
+    justify-content: space-between;
     gap: 0.75rem;
+    width: 100%;
+    padding-top: 0.75rem;
+    border-top: 1px solid var(--border-color);
 }
 
 .members-list {
@@ -425,9 +431,12 @@ body {
     font-weight: 600;
 }
 
-/* Botões Menores */
+.btn-primary-sm, .btn-outline-sm, .btn-danger-sm {
+    white-space: nowrap;
+}
+
 .btn-primary-sm {
-    padding: 0.5rem 0.9rem;
+    padding: 0.55rem 0.9rem;
     font-size: 0.875rem;
     background-color: var(--primary-color);
     color: #ffffff;
@@ -473,4 +482,26 @@ body {
 
 .btn-danger-sm:hover {
     background-color: #fecaca;
+}
+
+@media (min-width: 768px) {
+    .trip-bar {
+        flex-direction: row;
+        align-items: center;
+        justify-content: space-between;
+    }
+
+    .trip-selector-container {
+        width: auto;
+    }
+
+    .trip-select {
+        flex: initial;
+    }
+
+    .trip-members-container {
+        width: auto;
+        padding-top: 0;
+        border-top: none;
+    }
 }
