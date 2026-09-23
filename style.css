@@ -781,3 +781,25 @@ body {
         flex: initial;
     }
 }
+
+@media (max-width: 767px) {
+
+    .card-action-btn {
+        font-size: 0;
+    }
+
+    .card-action-btn[title="Mover para esquerda"]::after {
+        content: "⬆️";
+        font-size: 1rem;
+    }
+
+    .card-action-btn[title="Mover para direita"]::after {
+        content: "⬇️";
+        font-size: 1rem;
+    }
+
+    .card-action-btn[title="Excluir item"]::after {
+        content: "🗑️";
+        font-size: 1rem;
+    }
+}
