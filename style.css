@@ -501,13 +501,15 @@ body {
     left: 0;
     width: 100vw;
     height: 100vh;
+    height: 100dvh;
     background-color: rgba(0, 0, 0, 0.65);
     backdrop-filter: blur(4px);
     display: flex;
     justify-content: center;
-    align-items: center;
+    align-items: flex-start;
     z-index: 1000;
-    padding: 1rem;
+    padding: 1rem 0.75rem;
+    padding-top: 1.5rem;
 }
 
 .modal-card {
@@ -516,7 +518,8 @@ body {
     border-radius: var(--radius-md);
     width: 100%;
     max-width: 620px;
-    max-height: 90vh;
+    max-height: 85vh;
+    max-height: 85dvh;
     display: flex;
     flex-direction: column;
     box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.3);
@@ -570,11 +573,13 @@ body {
 }
 
 .modal-body {
-    padding: 1.5rem;
+    padding: 1.25rem;
     overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
     display: flex;
     flex-direction: column;
     gap: 1.25rem;
+    flex: 1;
 }
 
 .modal-meta-bar {
@@ -682,17 +687,25 @@ body {
 .modal-footer {
     padding: 1rem 1.5rem;
     border-top: 1px solid var(--border-color);
+    background-color: var(--bg-card);
     display: flex;
-    justify-content: space-between;
-    align-items: center;
+    flex-direction: column;
     gap: 0.75rem;
-    flex-wrap: wrap;
 }
 
 .footer-actions {
     display: flex;
     gap: 0.5rem;
-    margin-left: auto;
+    width: 100%;
+    justify-content: flex-end;
+}
+
+.footer-actions button {
+    flex: 1; 
+}
+
+#delete-card-modal-btn {
+    width: 100%; 
 }
 
 .app-footer {
@@ -741,5 +754,30 @@ body {
         width: auto;
         padding-top: 0;
         border-top: none;
+    }
+}
+
+@media (min-width: 540px) {
+    .modal-overlay {
+        align-items: center; 
+        padding-top: 1rem;
+    }
+
+    .modal-footer {
+        flex-direction: row;
+        justify-content: space-between;
+        align-items: center;
+    }
+
+    #delete-card-modal-btn {
+        width: auto;
+    }
+
+    .footer-actions {
+        width: auto;
+    }
+
+    .footer-actions button {
+        flex: initial;
     }
 }
