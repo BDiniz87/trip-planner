@@ -803,3 +803,13 @@ body {
         font-size: 1rem;
     }
 }
+
+.kanban-card.dragging {
+    opacity: 0.4;
+    transform: scale(0.98);
+}
+
+.kanban-column.drag-over {
+    border: 2px dashed var(--primary-color);
+    background-color: var(--bg-card);
+}

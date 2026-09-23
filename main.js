@@ -138,6 +138,35 @@ onAuthStateChanged(auth, (user) => {
     }
 });
 
+function initDragAndDrop() {
+    const columns = document.querySelectorAll('.kanban-column');
+
+    columns.forEach((column) => {
+        const targetColumnKey = column.getAttribute('data-column');
+
+        column.addEventListener('dragover', (e) => {
+            e.preventDefault(); // Necessário para permitir a soltura
+            column.classList.add('drag-over');
+        });
+
+        column.addEventListener('dragleave', () => {
+            column.classList.remove('drag-over');
+        });
+
+        column.addEventListener('drop', async (e) => {
+            e.preventDefault();
+            column.classList.remove('drag-over');
+
+            const cardId = e.dataTransfer.getData('text/plain');
+            if (cardId && targetColumnKey) {
+                await moveCard(cardId, targetColumnKey);
+            }
+        });
+    });
+}
+
+initDragAndDrop();
+
 function listenToUserTrips(user) {
     const tripsRef = collection(db, 'trips');
     const q = query(tripsRef, where('members', 'array-contains', user.email));
@@ -459,7 +488,17 @@ function clearKanban() {
 function createCardElement(id, data) {
     const cardDiv = document.createElement('div');
     cardDiv.className = 'kanban-card';
+    cardDiv.draggable = true;
     
+    cardDiv.addEventListener('dragstart', (e) => {
+        e.dataTransfer.setData('text/plain', id);
+        cardDiv.classList.add('dragging');
+    });
+
+    cardDiv.addEventListener('dragend', () => {
+        cardDiv.classList.remove('dragging');
+    });
+
     cardDiv.onclick = (e) => {
         if (e.target.tagName === 'BUTTON' || e.target.closest('.card-actions')) return;
         openCardModal(id, data);
